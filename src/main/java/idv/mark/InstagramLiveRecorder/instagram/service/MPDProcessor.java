@@ -38,6 +38,7 @@ public class MPDProcessor {
     private String audioMediaUrl;
     private InstagramHttpUtil instagramHttpUtil = new InstagramHttpUtil();
     private boolean init = false;
+    private boolean stopTriggered = false;
 
     public MPDProcessor(String dashABRPlaybackUrl, ParameterSetting parameterSetting) {
         this.dashABRPlaybackUrl = dashABRPlaybackUrl;
@@ -51,14 +52,14 @@ public class MPDProcessor {
         }
         // 確保任務完成, 並且等待所有的任務完成
         List<CompletableFuture<Void>> allMissions = new ArrayList<>();
-        log.info("Starting detect mission");
-        detect().thenRun(() -> log.info("Detect mission completed"));
-        log.info("Starting record mission");
-        allMissions.add(record().thenRun(() -> log.info("Record mission completed")));
+        printLogInfo("Starting detect mission");
+        detect().thenRun(() -> printLogInfo("Detect mission completed"));
+        printLogInfo("Starting record mission");
+        allMissions.add(record().thenRun(() -> printLogInfo("Record mission completed")));
         if (parameterSetting.isNeedDigitHistory()) {
             // 挖掘過去直播回放 (從參數設定中取得)
-            log.info("Starting digit history mission");
-            allMissions.add(digitHistory().thenRun(() -> log.info("Digit history mission completed")));
+            printLogInfo("Starting digit history mission");
+            allMissions.add(digitHistory().thenRun(() -> printLogInfo("Digit history mission completed")));
         }
         CompletableFuture.allOf(allMissions.toArray(new CompletableFuture[0])).join();
         if (CollectionUtils.isEmpty(m4vVideoDataMap.values())) {
@@ -67,7 +68,16 @@ public class MPDProcessor {
         // 等待所有的segment下載完成
         waitUntilAllSegmentsDownloaded();
         // 寫檔
-        writeFile(parameterSetting.getOutputPath());
+        writeFile();
+    }
+
+    public void stop() {
+        if (stopTriggered) {
+            Thread.currentThread().interrupt();
+        }
+        this.stopTriggered = true;
+        this.recording = false;
+        this.parameterSetting.setForceRecording(true);
     }
 
     private void waitUntilAllSegmentsDownloaded() {
@@ -78,10 +88,11 @@ public class MPDProcessor {
         while (times > 0 || !parameterSetting.isForceRecording()) {
             List<SegmentStatus> notDownloaded = segmentsDownloadMap.values().stream().filter(segmentStatus -> !segmentStatus.isDownloaded()).toList();
             if (CollectionUtils.isEmpty(notDownloaded)) {
-                log.info("All segments downloaded");
+                printLogInfo("All segments downloaded");
                 break;
             }
-            log.info("Wait for segment downloading: {}", notDownloaded.stream().map(segmentStatus -> String.valueOf(segmentStatus.getSegmentId())).collect(Collectors.joining(",")));
+            String notDownloadSegments = notDownloaded.stream().map(segmentStatus -> String.valueOf(segmentStatus.getSegmentId())).collect(Collectors.joining(","));
+            printLogInfo("Wait for segment downloading: {}", notDownloadSegments);
             times -= 1;
             try {
                 Thread.sleep(3000);
@@ -93,8 +104,9 @@ public class MPDProcessor {
         parameterSetting.setForceRecording(true);
     }
 
-    private void writeFile(String outputPath) {
-        String fileName = "output";
+    private void writeFile() {
+        String outputPath = parameterSetting.getOutputPath();
+        String fileName = parameterSetting.getOutputFileName().replace(".mp4", "");
         List<SegmentStatus> segmentStatusList = new ArrayList<>(segmentsDownloadMap.values());
         segmentStatusList.sort((o1, o2) -> (int) (o1.getSegmentId() - o2.getSegmentId()));
         // 寫 video 和 audio
@@ -111,32 +123,36 @@ public class MPDProcessor {
                 videoOutputStream.write(m4vVideoDataMap.get(segmentId));
                 audioOutputStream.write(m4aAudioDataMap.get(segmentId));
             }
-            writeToFile(videoOutputStream.toByteArray(), outputPath, fileName + ".m4v");
-            writeToFile(audioOutputStream.toByteArray(), outputPath, fileName + ".m4a");
+            writeToFile(videoOutputStream.toByteArray(), outputPath, "temp.m4v");
+            writeToFile(audioOutputStream.toByteArray(), outputPath, "temp.m4a");
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
         // 音檔影片檔合併一起
-        CmdUtil.exec("ffmpeg",
-                "-i",
-                String.format("%s/%s.m4v", outputPath, fileName),
-                "-i",
-                String.format("%s/%s.m4a", outputPath, fileName),
-                "-c:v",
-                "copy",
-                "-c:a",
-                "aac",
-                String.format("%s/%s_%s.mp4", outputPath, UUID.randomUUID(), fileName));
-
+        String fullFileName = String.format("%s/%s.mp4", outputPath, fileName);
+        String ffmpegOutputParameter = parameterSetting.getFfmpegOutputParameter();
+        String[] ffmpegParameterArray = ffmpegOutputParameter.split(" ");
+        String ffmpegPath = StringUtils.isAllBlank(parameterSetting.getFfmpegPath()) ? "ffmpeg" : String.format("%s/ffmpeg", parameterSetting.getFfmpegPath());
+        List<String> cmdList = new ArrayList<>() {{
+            add(ffmpegPath);
+            add("-i");
+            add(String.format("%s/temp.m4v", outputPath));
+            add("-i");
+            add(String.format("%s/temp.m4a", outputPath));
+        }};
+        cmdList.addAll(Arrays.asList(ffmpegParameterArray));
+        cmdList.add(fullFileName);
+        CmdUtil.exec(cmdList.toArray(new String[0]));
         // 刪除暫存檔
-        File tempOutputM4v = new File(String.format("%s/%s.m4v", outputPath, fileName));
-        File tempOutputM4a = new File(String.format("%s/%s.m4a", outputPath, fileName));
+        File tempOutputM4v = new File(String.format("%s/temp.m4v", outputPath));
+        File tempOutputM4a = new File(String.format("%s/temp.m4a", outputPath));
         if (tempOutputM4v.exists()) {
             tempOutputM4v.delete();
         }
         if (tempOutputM4a.exists()) {
             tempOutputM4a.delete();
         }
+        printLogInfo("output file: {}", fullFileName);
     }
 
     // 在存放於現有的MPD duration中，挖掘出過去的直播
@@ -156,12 +172,13 @@ public class MPDProcessor {
                     break;
                 }
             }
+            printTextAnimation();
             List<MPD.S> segmentList = new ArrayList<>(segmentsDownloadMap.keySet());
             segmentList.sort((o1, o2) -> (int) (o1.getT() - o2.getT()));
             Map<Long, List<MPD.S>> segmentMap = segmentList.stream().collect(Collectors.groupingBy(MPD.S::getD));
             List<Long> digitDurationFirstList = segmentMap.keySet().stream().sorted().collect(Collectors.toList());
             List<Long> allDuration = LongStream.rangeClosed(1800, 2500).boxed().collect(Collectors.toList());
-            log.info("Start digit history, min={}, max={}", 1800, 2500);
+            printLogInfo("Start digit history, min={}, max={}", 1800, 2500);
             digitDurationFirstList.remove(0);
             digit(digitDurationFirstList, allDuration);
         });
@@ -188,7 +205,7 @@ public class MPDProcessor {
             } else if (!CollectionUtils.isEmpty(copyAllDuration)) {
                 minusDuration = copyAllDuration.remove(0);
             } else {
-                log.info("digit history end");
+                printLogInfo("digit history end");
                 break;
             }
             digitSegmentId = startDigitSegment.getT() - minusDuration;
@@ -213,13 +230,13 @@ public class MPDProcessor {
             int statusCode = httpResponse.statusCode();
             if (statusCode == 200) {
                 // 挖掘成功
-                log.info("digit segment {} success", digitSegmentId);
+                printLogInfo("digit segment {} success", digitSegmentId);
                 MPD.S digitSuccessSegment = new MPD.S(digitSegmentId, minusDuration);
                 segmentsDownloadMap.put(digitSuccessSegment, new SegmentStatus(digitSegmentId, this.videoMediaUrl, this.audioMediaUrl, false, false));
                 if (digitSuccessSegment.getT() > 4300) {
                     digit(digitDurationFirstList, allDuration);
                 } else {
-                    log.info("digit done, last segmentId={}", digitSuccessSegment.getT());
+                    printLogInfo("digit done, last segmentId = {}", digitSuccessSegment.getT());
                 }
                 break;
             } else if (statusCode == 404 || statusCode == 410) {
@@ -235,6 +252,31 @@ public class MPDProcessor {
         }
     }
 
+    private void printLogInfo(String text, Object... objects) {
+        System.out.print("");
+        log.info(text, objects);
+    }
+
+    private void printTextAnimation() {
+        // 創建一個執行緒來顯示Running動畫
+        Thread loadingThread = new Thread(() -> {
+            String[] animation = { "Running   ", "Running.  ", "Running.. ", "Running..." };
+            int i = 0;
+            while (!parameterSetting.isForceRecording()) {
+                System.out.print("\r" + animation[i % animation.length]); // 顯示動畫
+                i++;
+                try {
+                    Thread.sleep(500); // 設定動畫間隔時間
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        });
+
+        // 開始loading動畫執行緒
+        loadingThread.start();
+    }
+
     private HttpResponse<byte[]> tryDigitBySegmentId(long digitSegmentId) {
         try {
             // 間隔時間
@@ -248,7 +290,7 @@ public class MPDProcessor {
 
     private CompletableFuture<Void> record() {
         return CompletableFuture.runAsync(() -> {
-            log.info("Start recording");
+            printLogInfo("Start recording");
             while (recording && !parameterSetting.isForceRecording()) {
                 try {
                     Thread.sleep(2000);
@@ -302,7 +344,7 @@ public class MPDProcessor {
                 }
                 mpdList.add(mpd);
             }
-            log.info("End recording");
+            printLogInfo("End recording");
         });
     }
 
@@ -396,7 +438,7 @@ public class MPDProcessor {
                         return;
                     }
                     if (result != null) {
-                        log.info(result);
+                        printLogInfo(result);
                     }
                 });
     }
