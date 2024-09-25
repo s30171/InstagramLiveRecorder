@@ -14,47 +14,48 @@ public class InstagramRecorder {
 
     public static void main(String[] args) {
         ParameterSetting parameterSetting = new ParameterSetting();
-        // 預設值
-        String outputFilePath = parameterSetting.getOutputPath();
         String username = null;
         String csrfToken = null;
         String sessionId = null;
-        Integer requestInterval = parameterSetting.getMAX_DIGIT_INTERVAL_MILLISECONDS();
 
-        // 解析命令行參數
+        // 解析參數
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--help":
                     log.info("\nUsage: java -jar InstagramLiveRecorder.jar -i <outputFilePath> -u <username> -c <csrfToken> -s <sessionId> [-interval <requestInterval>] [-history]");
+                    System.exit(0);
                     break;
                 case "-ffmpegPath":
-                    parameterSetting.setFfmpegPath(args[++i]); // ffmpeg 路徑
+                    parameterSetting.setFfmpegPath(args[++i]);
                     break;
                 case "-ffmpegParam":
-                    parameterSetting.setFfmpegOutputParameter(args[++i]); // ffmpeg 輸出參數
+                    parameterSetting.setFfmpegOutputParameter(args[++i]);
                     break;
                 case "-i":
-                    outputFilePath = args[++i]; // 輸出路徑
+                    String outputFilePath = args[++i];
                     parameterSetting.setOutputPath(getFilePath(outputFilePath));
+                    String fileName = getFileName(outputFilePath);
                     parameterSetting.setOutputFileName(getFileName(outputFilePath));
+                    parameterSetting.setOutputFileExtension(getFileExtension(fileName));
                     break;
                 case "-u":
-                    username = args[++i]; // Instagram 用戶名
+                    username = args[++i]; // Instagram 用戶名 ex: triplescosmos
                     break;
                 case "-c":
-                    csrfToken = args[++i]; // csrfToken
+                    csrfToken = args[++i];
                     break;
                 case "-s":
-                    sessionId = args[++i]; // sessionId
+                    sessionId = args[++i];
                     break;
                 case "-interval":
-                    if (i + 1 < args.length) { // 確保還有下一個參數
+                    if (i + 1 < args.length) {
                         try {
-                            requestInterval = Integer.parseInt(args[++i]); // 這裡直接解析並增加 i
+                            int requestInterval = Integer.parseInt(args[++i]);
                             if (requestInterval < 1 || requestInterval > 5000) {
                                 log.error("interval must be a 1-5000 number");
                                 System.exit(1);
                             }
+                            parameterSetting.setMAX_DIGIT_INTERVAL_MILLISECONDS(requestInterval);
                         } catch (NumberFormatException e) {
                             log.error("interval must be a 1-5000 number");
                             System.exit(1);
@@ -62,7 +63,7 @@ public class InstagramRecorder {
                     }
                     break;
                 case "-history":
-                    parameterSetting.setNeedDigitHistory(true); // 是否需要歷史紀錄
+                    parameterSetting.setNeedDigitHistory(true);
                     break;
                 default:
                     log.error("unknown parameter: " + args[i]);
@@ -71,7 +72,7 @@ public class InstagramRecorder {
 
         String logMsg = "\n";
         boolean exit = false;
-        // 檢查是否有必須的參數
+        // 檢查是否有必須的參數 (username, csrfToken, sessionId)
         if (username == null) {
             exit = true;
             logMsg += "need username：-u <username> \n";
@@ -93,22 +94,38 @@ public class InstagramRecorder {
         File outputDir = new File(parameterSetting.getOutputPath());
         if (!outputDir.exists()) outputDir.mkdirs(); // 創建資料夾
 
-        // 初始化 Instagram 錄製邏輯
-        GetUserStreamInfo getUserStreamInfo = new GetUserStreamInfo(username, csrfToken, sessionId);
-        String dashPlaybackUrlByWebInfoApi = getUserStreamInfo.getDashPlaybackUrlByWebInfoApi();
-        MPDProcessor mpdProcessor = new MPDProcessor(dashPlaybackUrlByWebInfoApi, parameterSetting);
+        // 初始化 Instagram 錄製器
+        MPDProcessor mpdProcessor = null;
+        try {
+            GetUserStreamInfo getUserStreamInfo = new GetUserStreamInfo(username, csrfToken, sessionId);
+            String dashPlaybackUrlByWebInfoApi = getUserStreamInfo.getDashPlaybackUrlByWebInfoApi();
+            mpdProcessor = new MPDProcessor(dashPlaybackUrlByWebInfoApi, parameterSetting);
+        } catch (Exception e) {
+            log.error("GetUserStreamInfo or getDashPlaybackUrlByWebInfoApi error", e);
+            System.exit(1);
+        }
 
         // 設置中斷處理
+        MPDProcessor finalMpdProcessor = mpdProcessor;
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             log.info("catch exit, write file...");
-            mpdProcessor.stop();
-            log.info("recording stopped");
+            try {
+                finalMpdProcessor.stop();
+            } catch (Exception e) {
+                log.error("Error while stopping MPDProcessor", e);
+            } finally {
+                log.info("all stopped, Thread: {}", Thread.currentThread().getId());
+                System.exit(0);
+                log.info("System.exit triggered! Thread: {}", Thread.currentThread().getId());
+            }
         }));
 
         // 開始處理錄製過程
+        log.info("start processing... Thread: {}", Thread.currentThread().getId());
         mpdProcessor.process();
+        log.info("all done! Thread: {}", Thread.currentThread().getId());
 
-        log.info("all done!");
+        System.exit(0); // 正常退出
     }
 
     // 解析輸出路徑 (檔名)
@@ -125,5 +142,17 @@ public class InstagramRecorder {
         } else {
             return "";
         }
+    }
+
+    // 解析輸出路徑 (副檔名)
+    private static String getFileExtension(String fileName) {
+        if (fileName == null || fileName.isEmpty()) {
+            return "";
+        }
+        int dotIndex = fileName.lastIndexOf('.');
+        if (dotIndex > 0 && dotIndex < fileName.length() - 1) {
+            return fileName.substring(dotIndex + 1);
+        }
+        return "";
     }
 }

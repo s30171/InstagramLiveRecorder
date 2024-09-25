@@ -37,7 +37,7 @@ public class GetUserStreamInfo {
             throw new RuntimeException("broadcastUserId is blank");
         }
         String url = String.format(GET_WEB_INFO_URL, broadcastUserId);
-        String body = instagramHttpUtil.sendHttpRequestWithSessionHeader(url);
+        String body = instagramHttpUtil.getHttpRequestWithSessionHeader(url);
         BroadcastInfo broadcastInfo = new Gson().fromJson(body, BroadcastInfo.class);
         if ("fail".equals(broadcastInfo.getStatus())) {
             throw new RuntimeException("broadcastInfo status is fail, message: " + broadcastInfo.getMessage());
@@ -63,7 +63,7 @@ public class GetUserStreamInfo {
             throw new RuntimeException("broadcastUserAccountName is blank");
         }
         String url = String.format(GET_USER_PROFILE_INFO_URL, broadcastUserAccountName);
-        String body = instagramHttpUtil.sendHttpRequestWithSessionHeader(url);
+        String body = instagramHttpUtil.getHttpRequestWithSessionHeader(url);
         UserProfileInfo userProfileInfo = new Gson().fromJson(body, UserProfileInfo.class);
         log.info(Objects.isNull(userProfileInfo) ? "userProfileInfo is null" : String.format("userProfileInfo id: %s", userProfileInfo.getData().getUser().getId()));
         return userProfileInfo;

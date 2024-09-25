@@ -13,7 +13,9 @@ public class ParameterSetting {
     // 輸出路徑
     private String outputPath = "output";
     // 輸出檔名
-    private String outputFileName = "default.mp4";
+    private String outputFileName = "default";
+    // 輸出檔案副檔名
+    private String outputFileExtension = "mp4";
     // ffmpeg 路徑
     private String ffmpegPath = "";
     // ffmpeg 輸出參數

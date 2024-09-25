@@ -19,6 +19,35 @@ import java.util.concurrent.CompletableFuture;
 @Data
 @Slf4j
 public class InstagramHttpUtil {
+
+    // 解析輸出路徑 (檔名)
+    private static String getFileName(String outputFilePath) {
+        String[] split = outputFilePath.split("/");
+        return split[split.length - 1];
+    }
+
+    // 解析輸出路徑 (檔案資料夾)
+    private static String getFilePath(String outputFilePath) {
+        String[] split = outputFilePath.split("/");
+        if (split.length > 1) {
+            return outputFilePath.substring(0, outputFilePath.length() - split[split.length - 1].length() - 1);
+        } else {
+            return "";
+        }
+    }
+
+    // 解析輸出路徑 (副檔名)
+    private static String getFileExtension(String fileName) {
+        if (fileName == null || fileName.isEmpty()) {
+            return "";
+        }
+        int dotIndex = fileName.lastIndexOf('.');
+        if (dotIndex > 0 && dotIndex < fileName.length() - 1) {
+            return fileName.substring(dotIndex + 1);
+        }
+        return "";
+    }
+
     private static final ObjectMapper xmlMapper = new XmlMapper();
     private final Map<String, String> WITH_SESSION_API_HEADERS = new HashMap<>(){{
         put("accept", "*/*");
@@ -49,33 +78,28 @@ public class InstagramHttpUtil {
             "user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
     };
 
+    // 下載 Instagram 直播影片的片段 (主要會帶進來m4v, m4a的URL)
     public CompletableFuture<HttpResponse<byte[]>> downloadSegment(String segmentUrl) {
-        // 準備 HTTP request
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                 .uri(URI.create(segmentUrl))
                 .headers(NORMAL_HEADERS)
                 .GET();
         HttpRequest request = requestBuilder.build();
-        // 發送請求並取得回應
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray());
     }
 
-    public String sendHttpRequestWithSessionHeader(String url) {
-        // 準備 HTTP request
+    // 帶上 session header的GET request
+    public String getHttpRequestWithSessionHeader(String url) {
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .GET();
-
         // 設置 Headers
         for (Map.Entry<String, String> entry : WITH_SESSION_API_HEADERS.entrySet()) {
             requestBuilder.setHeader(entry.getKey(), entry.getValue());
         }
-
         HttpRequest request = requestBuilder.build();
-
-        // 發送請求並取得回應
         HttpResponse<String> response;
         try {
             response = client.send(request, HttpResponse.BodyHandlers.ofString());
@@ -88,15 +112,14 @@ public class InstagramHttpUtil {
         return response.body();
     }
 
+    // 取得當下dash MPD XML檔案
     public MPD getMPDXMLByDashPlayBackUrl(String dashABRPlaybackUrl) {
-        // 準備 HTTP request
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(dashABRPlaybackUrl))
                 .headers(NORMAL_HEADERS)
                 .GET()
                 .build();
-        // 發送請求並取得回應
         HttpResponse<String> response;
         try {
             response = client.send(request, HttpResponse.BodyHandlers.ofString());
@@ -115,15 +138,14 @@ public class InstagramHttpUtil {
         }
     }
 
+    // 挖掘 Instagram segment 直播影片的方法 (用HEAD request)
     public HttpResponse<byte[]> digitHasSource(String digitURL) {
-        // 準備 HTTP request
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(digitURL))
                 .headers(NORMAL_HEADERS)
                 .method("HEAD", HttpRequest.BodyPublishers.noBody())
                 .build();
-        // 發送請求並取得回應
         try {
             return client.send(request, HttpResponse.BodyHandlers.ofByteArray());
         } catch (IOException | InterruptedException e) {

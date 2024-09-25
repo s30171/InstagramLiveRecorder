@@ -7,27 +7,17 @@ import java.nio.charset.Charset;
 
 @Slf4j
 public class CmdUtil {
-    public static String exec(String cmd) {
-        return exec(cmd.split(" "));
-    }
-
     public static String exec(String... cmd) {
         try {
             Process p = new ProcessBuilder(cmd).start();
             p.info().command().ifPresent(log::info);
             StringBuilder stdout = new StringBuilder();
             StringBuilder stderr = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getErrorStream(), Charset.defaultCharset()));
-                 BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(p.getOutputStream()))) {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getErrorStream(), Charset.defaultCharset()))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     log.info("[err] " + line);
                     stderr.append(line).append("\n");
-                    if (line.contains("poll until it starts, or not wait?")) {
-                        log.info("innnnnn");
-                        writer.write("wait\n"); // 輸入wait, 讓他自動執行
-                        writer.flush();
-                    }
                 }
             } catch (IOException e) {
                 e.printStackTrace();
