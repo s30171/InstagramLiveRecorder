@@ -1,6 +1,7 @@
 package idv.mark.InstagramLiveRecorder.instagram.service;
 
 import idv.mark.InstagramLiveRecorder.instagram.CmdUtil;
+import idv.mark.InstagramLiveRecorder.instagram.FileUtil;
 import idv.mark.InstagramLiveRecorder.instagram._enum.AudioRepresentationId;
 import idv.mark.InstagramLiveRecorder.instagram._enum.VideoRepresentationId;
 import idv.mark.InstagramLiveRecorder.instagram.model.MPD;
@@ -109,8 +110,31 @@ public class MPDProcessor {
 
     // 將影片和音訊寫入檔案
     private void writeFile() {
+        String ffmpegOutputParameter = parameterSetting.getFfmpegOutputParameter();
+        String[] ffmpegParameterArray = ffmpegOutputParameter.split(" ");
+        List<String> cmdList = new ArrayList<>();
         String outputPath = parameterSetting.getOutputPath();
         String fileName = parameterSetting.getOutputFileName().replace(String.format(".%s", parameterSetting.getOutputFileExtension()), "");
+        String fullFileName = String.format("%s/%s.mp4", outputPath, fileName);
+        String anotherPath = askWantToOverwrite(fullFileName);
+        boolean overwrite = "y".equals(anotherPath);
+        if (!"y".equals(anotherPath)) {
+            fullFileName = anotherPath;
+        }
+        outputPath = FileUtil.getFilePath(fullFileName);
+        File file = new File(outputPath);
+        if (!file.exists())  file.mkdirs();
+
+        String ffmpegPath = StringUtils.isAllBlank(parameterSetting.getFfmpegPath()) ? "ffmpeg" : String.format("%s/ffmpeg", parameterSetting.getFfmpegPath());
+        cmdList.add(ffmpegPath);
+        cmdList.add("-i");
+        cmdList.add(String.format("%s/temp.m4v", outputPath));
+        cmdList.add("-i");
+        cmdList.add(String.format("%s/temp.m4a", outputPath));
+        cmdList.addAll(Arrays.asList(ffmpegParameterArray));
+        if (overwrite) cmdList.add("-y");
+        cmdList.add(fullFileName);
+
         List<SegmentStatus> segmentStatusList = new ArrayList<>(segmentsDownloadMap.values());
         segmentStatusList.sort((o1, o2) -> (int) (o1.getSegmentId() - o2.getSegmentId()));
         try (ByteArrayOutputStream videoOutputStream = new ByteArrayOutputStream();
@@ -131,21 +155,9 @@ public class MPDProcessor {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        // 音檔影片檔合併一起
-        String fullFileName = String.format("%s/%s.mp4", outputPath, fileName);
-        String ffmpegOutputParameter = parameterSetting.getFfmpegOutputParameter();
-        String[] ffmpegParameterArray = ffmpegOutputParameter.split(" ");
-        String ffmpegPath = StringUtils.isAllBlank(parameterSetting.getFfmpegPath()) ? "ffmpeg" : String.format("%s/ffmpeg", parameterSetting.getFfmpegPath());
-        List<String> cmdList = new ArrayList<>() {{
-            add(ffmpegPath);
-            add("-i");
-            add(String.format("%s/temp.m4v", outputPath));
-            add("-i");
-            add(String.format("%s/temp.m4a", outputPath));
-        }};
-        cmdList.addAll(Arrays.asList(ffmpegParameterArray));
-        cmdList.add(fullFileName);
+
         CmdUtil.exec(cmdList.toArray(new String[0]));
+
         // 刪除暫存檔
         File tempOutputM4v = new File(String.format("%s/temp.m4v", outputPath));
         File tempOutputM4a = new File(String.format("%s/temp.m4a", outputPath));
@@ -157,6 +169,23 @@ public class MPDProcessor {
         }
         log.info("output file: {}", fullFileName);
     }
+
+    // 讓使用者選擇是否覆蓋或提供新檔案路徑
+    public static String askWantToOverwrite(String fullFileName) {
+        File file = new File(fullFileName);
+        if (!file.exists()) {
+            return fullFileName;
+        }
+        Scanner scanner = new Scanner(System.in);
+        System.out.printf("file %s exist。choose:\n- type 'y' to overrite file\n- or set path for file (ex: test/record.mp4)", fullFileName);
+        String userInput = scanner.nextLine().trim();
+        if ("y".equals(userInput)) {
+            return "y";
+        } else {
+            return askWantToOverwrite(userInput);
+        }
+    }
+
 
     // 在存放於現有的MPD duration中，觸發挖掘出過去的直播
     // 會依照觸發多至少的順序發送Http HEAD request, 404表示無, 200表示有
@@ -409,7 +438,7 @@ public class MPDProcessor {
                         log.error("Download failed: {}", throwable.getMessage());
                         return;
                     }
-                    if (result != null) {
+                    if (result != null && recording) {
                         log.info(result);
                     }
                 });

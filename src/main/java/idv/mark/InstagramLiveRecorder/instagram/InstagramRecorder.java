@@ -6,8 +6,6 @@ import idv.mark.InstagramLiveRecorder.instagram.service.MPDProcessor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.File;
-
 @Data
 @Slf4j
 public class InstagramRecorder {
@@ -33,10 +31,10 @@ public class InstagramRecorder {
                     break;
                 case "-i":
                     String outputFilePath = args[++i];
-                    parameterSetting.setOutputPath(getFilePath(outputFilePath));
-                    String fileName = getFileName(outputFilePath);
-                    parameterSetting.setOutputFileName(getFileName(outputFilePath));
-                    parameterSetting.setOutputFileExtension(getFileExtension(fileName));
+                    parameterSetting.setOutputPath(FileUtil.getFilePath(outputFilePath));
+                    String fileName = FileUtil.getFileName(outputFilePath);
+                    parameterSetting.setOutputFileName(FileUtil.getFileName(outputFilePath));
+                    parameterSetting.setOutputFileExtension(FileUtil.getFileExtension(fileName));
                     break;
                 case "-u":
                     username = args[++i]; // Instagram 用戶名 ex: triplescosmos
@@ -90,10 +88,6 @@ public class InstagramRecorder {
             System.exit(1);
         }
 
-        // 設置輸出路徑
-        File outputDir = new File(parameterSetting.getOutputPath());
-        if (!outputDir.exists()) outputDir.mkdirs(); // 創建資料夾
-
         // 初始化 Instagram 錄製器
         MPDProcessor mpdProcessor = null;
         try {
@@ -108,51 +102,19 @@ public class InstagramRecorder {
         // 設置中斷處理
         MPDProcessor finalMpdProcessor = mpdProcessor;
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            log.info("catch exit, write file...");
+            log.info("stopped triggered, write file...");
             try {
                 finalMpdProcessor.stop();
             } catch (Exception e) {
                 log.error("Error while stopping MPDProcessor", e);
             } finally {
-                log.info("all stopped, Thread: {}", Thread.currentThread().getId());
-                System.exit(0);
-                log.info("System.exit triggered! Thread: {}", Thread.currentThread().getId());
+                log.info("Shutdown complete!");
             }
         }));
 
         // 開始處理錄製過程
-        log.info("start processing... Thread: {}", Thread.currentThread().getId());
+        log.info("start processing...");
         mpdProcessor.process();
-        log.info("all done! Thread: {}", Thread.currentThread().getId());
-
-        System.exit(0); // 正常退出
-    }
-
-    // 解析輸出路徑 (檔名)
-    private static String getFileName(String outputFilePath) {
-        String[] split = outputFilePath.split("/");
-        return split[split.length - 1];
-    }
-
-    // 解析輸出路徑 (檔案資料夾)
-    private static String getFilePath(String outputFilePath) {
-        String[] split = outputFilePath.split("/");
-        if (split.length > 1) {
-            return outputFilePath.substring(0, outputFilePath.length() - split[split.length - 1].length() - 1);
-        } else {
-            return "";
-        }
-    }
-
-    // 解析輸出路徑 (副檔名)
-    private static String getFileExtension(String fileName) {
-        if (fileName == null || fileName.isEmpty()) {
-            return "";
-        }
-        int dotIndex = fileName.lastIndexOf('.');
-        if (dotIndex > 0 && dotIndex < fileName.length() - 1) {
-            return fileName.substring(dotIndex + 1);
-        }
-        return "";
+        log.info("all done!");
     }
 }
