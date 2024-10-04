@@ -1,5 +1,9 @@
 package idv.mark.InstagramLiveRecorder.instagram;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+
 public class FileUtil {
 
     // 解析輸出路徑 (檔名)
@@ -28,5 +32,15 @@ public class FileUtil {
             return fileName.substring(dotIndex + 1);
         }
         return "";
+    }
+
+    // 將byte[]寫入檔案
+    public static void writeToFile(byte[] data, String filePath, String fileName) {
+        try (FileOutputStream fos = new FileOutputStream(filePath + File.separator + fileName)) {
+            new File(filePath).mkdirs();
+            fos.write(data);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

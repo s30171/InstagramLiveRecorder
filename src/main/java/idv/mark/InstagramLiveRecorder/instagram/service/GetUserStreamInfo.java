@@ -10,6 +10,9 @@ import org.apache.commons.lang3.StringUtils;
 import java.util.Map;
 import java.util.Objects;
 
+/**
+ * 取得Instagram直播串流資訊
+ */
 @Data
 @Slf4j
 public class GetUserStreamInfo {

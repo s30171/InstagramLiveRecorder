@@ -2,10 +2,13 @@ package idv.mark.InstagramLiveRecorder.instagram;
 
 import idv.mark.InstagramLiveRecorder.instagram.model.ParameterSetting;
 import idv.mark.InstagramLiveRecorder.instagram.service.GetUserStreamInfo;
-import idv.mark.InstagramLiveRecorder.instagram.service.MPDProcessor;
+import idv.mark.InstagramLiveRecorder.instagram.service.MPDRecorder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Instagram 錄製器程式進入點 (有透過maven mainClass設定)
+ */
 @Data
 @Slf4j
 public class InstagramRecorder {
@@ -89,22 +92,22 @@ public class InstagramRecorder {
         }
 
         // 初始化 Instagram 錄製器
-        MPDProcessor mpdProcessor = null;
+        MPDRecorder mpdRecorder = null;
         try {
             GetUserStreamInfo getUserStreamInfo = new GetUserStreamInfo(username, csrfToken, sessionId);
             String dashPlaybackUrlByWebInfoApi = getUserStreamInfo.getDashPlaybackUrlByWebInfoApi();
-            mpdProcessor = new MPDProcessor(dashPlaybackUrlByWebInfoApi, parameterSetting);
+            mpdRecorder = new MPDRecorder(dashPlaybackUrlByWebInfoApi, parameterSetting);
         } catch (Exception e) {
             log.error("GetUserStreamInfo or getDashPlaybackUrlByWebInfoApi error", e);
             System.exit(1);
         }
 
         // 設置中斷處理
-        MPDProcessor finalMpdProcessor = mpdProcessor;
+        MPDRecorder finalMpdRecorder = mpdRecorder;
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             log.info("stopped triggered, write file...");
             try {
-                finalMpdProcessor.stop();
+                finalMpdRecorder.stop();
             } catch (Exception e) {
                 log.error("Error while stopping MPDProcessor", e);
             } finally {
@@ -114,7 +117,7 @@ public class InstagramRecorder {
 
         // 開始處理錄製過程
         log.info("start processing...");
-        mpdProcessor.process();
+        mpdRecorder.process();
         log.info("all done!");
     }
 }

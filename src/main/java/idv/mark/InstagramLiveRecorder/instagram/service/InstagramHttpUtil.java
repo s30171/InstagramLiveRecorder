@@ -16,37 +16,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * 主要用來處理Instagram的Http request util
+ */
 @Data
 @Slf4j
 public class InstagramHttpUtil {
-
-    // 解析輸出路徑 (檔名)
-    private static String getFileName(String outputFilePath) {
-        String[] split = outputFilePath.split("/");
-        return split[split.length - 1];
-    }
-
-    // 解析輸出路徑 (檔案資料夾)
-    private static String getFilePath(String outputFilePath) {
-        String[] split = outputFilePath.split("/");
-        if (split.length > 1) {
-            return outputFilePath.substring(0, outputFilePath.length() - split[split.length - 1].length() - 1);
-        } else {
-            return "";
-        }
-    }
-
-    // 解析輸出路徑 (副檔名)
-    private static String getFileExtension(String fileName) {
-        if (fileName == null || fileName.isEmpty()) {
-            return "";
-        }
-        int dotIndex = fileName.lastIndexOf('.');
-        if (dotIndex > 0 && dotIndex < fileName.length() - 1) {
-            return fileName.substring(dotIndex + 1);
-        }
-        return "";
-    }
 
     private static final ObjectMapper xmlMapper = new XmlMapper();
     private final Map<String, String> WITH_SESSION_API_HEADERS = new HashMap<>(){{
