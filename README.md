@@ -23,15 +23,15 @@ Instagram Live Recorder 是一個用於錄製 Instagram 直播的工具，並通
     mvn clean package
 3. 取得 InstagramLiveRecorder.jar：
 - 打包完成後會產生於 target/ 資料夾。
-- [InstagramLiveRecorder-ver1.jar](target%2FInstagramLiveRecorder-ver1.jar)
+- 預設jar 檔案名稱 InstagramLiveRecorder-ver1.jar
 
 ## 使用方式
 1. 執行 InstagramLiveRecorder.jar 並指定參數來錄製 Instagram 直播：
     ```bash
-    java -jar InstagramLiveRecorder.jar -i <outputFilePath> -u <username> -c <csrfToken> -s <sessionId> [其他參數]
+    java -jar InstagramLiveRecorder-ver1.jar -i <outputFilePath> -u <username> -c <csrfToken> -s <sessionId> [其他參數]
 2. 範例指令
     ```bash
-    java -jar InstagramLiveRecorder.jar -i output/test.mp4 -u username -u triplescomsoms -s 68517975957%3ABK7eS4syKuzu4d%3A26%3DGu736e0ToYSS2PeD5WewIF1ACVAAYeLZCDLf18eebAg -c DDmOTEgdHFADU8GPdDUuOTW1CxD6JsED 
+    java -jar InstagramLiveRecorder-ver1.jar -i output/test.mp4 -u username -u triplescomsoms -s 68517975957%3ABK7eS4syKuzu4d%3A26%3DGu736e0ToYSS2PeD5WewIF1ACVAAYeLZCDLf18eebAg -c DDmOTEgdHFADU8GPdDUuOTW1CxD6JsED 
 
 ## 參數
 | 參數名 | 說明                                                                                                   | 必須 | 
