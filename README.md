@@ -33,6 +33,9 @@ Instagram Live Recorder 是一個用於錄製 Instagram 直播的工具，並通
 2. 範例指令
     ```bash
     java -jar InstagramLiveRecorder-ver1.jar -i output/test.mp4 -u username -u triplescomsoms -s 68517975957%3ABK7eS4syKuzu4d%3A26%3DGu736e0ToYSS2PeD5WewIF1ACVAAYeLZCDLf18eebAg -c DDmOTEgdHFADU8GPdDUuOTW1CxD6JsED 
+3. 如果需要中斷 (會停止錄影，並等待當下所有的segment下載完成後，輸出檔案)
+    ```bash
+    Ctrl + C
 
 ## 使用方式(maven)
 1. 把jitpack repo加入到pom.xml
@@ -53,17 +56,21 @@ Instagram Live Recorder 是一個用於錄製 Instagram 直播的工具，並通
     </dependency>
 3. 在程式裡面呼叫錄影工具
    ```java
-     String username = "{需錄影的用戶名}";
-     String csrfToken = "{Instagram登入後的csrfToken}";
-     String sessionId = "{Instagram登入後的sessionId}";
-     // 在這個物件設定參數
-     ParameterSetting parameterSetting = new ParameterSetting();
-     // 透過api取得串流資訊
-     GetUserStreamInfo getUserStreamInfo = new GetUserStreamInfo(username, csrfToken, sessionId);
-     String dashPlaybackUrlByWebInfoApi = getUserStreamInfo.getDashPlaybackUrlByWebInfoApi();
-     // 放入dashPlayback url, 開始錄製串流
-     MPDRecorder mpdRecorder = new MPDRecorder(dashPlaybackUrlByWebInfoApi, parameterSetting);
-     mpdRecorder.process();
+   String username = "{需錄影的用戶名}";
+   String csrfToken = "{Instagram登入後的csrfToken}";
+   String sessionId = "{Instagram登入後的sessionId}";
+   // 在這個物件設定參數
+   ParameterSetting parameterSetting = new ParameterSetting();
+   // 透過api取得串流資訊
+   GetUserStreamInfo getUserStreamInfo = new GetUserStreamInfo(username, csrfToken, sessionId);
+   String dashPlaybackUrlByWebInfoApi = getUserStreamInfo.getDashPlaybackUrlByWebInfoApi();
+   // 放入dashPlayback url, 開始錄製串流
+   MPDRecorder mpdRecorder = new MPDRecorder(dashPlaybackUrlByWebInfoApi, parameterSetting);
+   mpdRecorder.process();
+4. 如果需要中斷 (會停止錄影，並等待當下所有的segment下載完成後，輸出檔案)
+   ```java
+   mpdRecorder.stop();
+   
 ## 參數
 | 參數名 | 說明                                                                                                   | 必須 | 
 | --- |------------------------------------------------------------------------------------------------------|-| 
