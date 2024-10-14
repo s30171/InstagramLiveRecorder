@@ -5,8 +5,8 @@ Instagram Live Recorder 是一個用於錄製 Instagram 直播的工具，並通
 ## 目錄
 - [需求](#需求)
 - [安裝](#安裝)
-- [使用方式](#使用方式(cmd))
-- [使用方式(maven)](#使用方式(maven))
+- [使用方式(cmd)](#使用方式cmd)
+- [使用方式(maven)](#使用方式maven)
 - [參數](#參數)
 
 ## 需求
