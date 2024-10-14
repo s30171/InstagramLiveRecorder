@@ -16,7 +16,7 @@ Instagram Live Recorder 是一個用於錄製 Instagram 直播的工具，並通
 ## 安裝
 1. Clone 此專案至本地端：
    ```bash
-   git clone https://github.com/yourusername/InstagramLiveRecorder.git
+   git clone https://github.com/s30171/InstagramLiveRecorder.git
    cd InstagramLiveRecorder
 2. 使用 Maven 進行打包：
    ```bash
