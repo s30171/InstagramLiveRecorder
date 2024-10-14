@@ -32,7 +32,7 @@ Instagram Live Recorder 是一個用於錄製 Instagram 直播的工具，並通
     java -jar InstagramLiveRecorder-ver1.jar -i <outputFilePath> -u <username> -c <csrfToken> -s <sessionId> [其他參數]
 2. 範例指令
     ```bash
-    java -jar InstagramLiveRecorder-ver1.jar -i output/test.mp4 -u triplescomsoms -s 68517975957%3ABK7eS4syKuzu4d%3A26%3DGu736e0ToYSS2PeD5WewIF1ACVAAYeLZCDLf18eebAg -c DDmOTEgdHFADU8GPdDUuOTW1CxD6JsED 
+    java -jar InstagramLiveRecorder-ver1.jar -i output/test.mp4 -u triplescosoms -s 68517975957%3ABK7eS4syKuzu4d%3A26%3DGu736e0ToYSS2PeD5WewIF1ACVAAYeLZCDLf18eebAg -c DDmOTEgdHFADU8GPdDUuOTW1CxD6JsED 
 3. 如果需要中斷 (會停止錄影，並等待當下所有的segment下載完成後，輸出檔案)
     ```bash
     Ctrl + C
